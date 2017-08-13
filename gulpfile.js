@@ -17,7 +17,10 @@ es2015 = require('babel-preset-es2015'),
 del = require('del'),
 debug = require('gulp-debug'),
 rev = require('gulp-rev'),
-beautify = require('gulp-jsbeautify');
+beautify = require('gulp-jsbeautify'),
+webpack = require('webpack'),
+stylelint = require('gulp-stylelint'),
+prettier = require('gulp-prettier');
 
 // Default task that runs on 'Gulp' command
 
@@ -35,26 +38,12 @@ gulp.task('watch', function(){
 
 // Watch CSS for changes and inject compiled and minified CSS
 
-watch('app/assets/styles/*.css', function(){
+watch('app/assets/styles/**/*.css', function(){
 gulp.start('cssInject');
 });
 
-// Watch JS for changes and beautify
-
-//watch('app/assets/scripts/*.js', function(){
-//gulp.start('beautify');
-//});
-
-// JS beautifer
-
-//gulp.task('beautify', function() {
-  //return gulp.src('app/assets/scripts/app.js')
-  //  .pipe(beautify({indentSize: 2}))
-   // .pipe(gulp.dest('app/assets/scripts/app.js'));
-//});
 
 // Live reload browserSync
-
 watch('app/index.html', function(){
   browserSync.reload();
 });
@@ -69,15 +58,52 @@ gulp.task('compilecss', function(){
 
 });
 
-// Injects compiled CSS into page
+// Lint CSS
 
+
+
+// Injects compiled CSS into page
 gulp.task('cssInject', ['compilecss'], function(){
   return gulp.src('app/assets/styles/styles.css')
   .pipe(browserSync.stream());
 
 });
 
+// Webpack
+// gulp.task('bundle', function(callback){
+//  webpack(require('./webpack.config.js'), function(err, stats){
+//    if(err) {
+//      console.log(err.toString());
+//    }
+//    console.log(stats.toString());
+//    callback();
+//    });
+//  });
 
+watch('app/assets/scripts/app.js', function(){
+  browserSync.reload();
+});
+
+gulp.task('prettier', () => {
+    gulp.src('assets/scripts/app.js')
+    .pipe(prettier({useFlowParser: true}))
+    .pipe(gulp.dest('assets/scripts/app.js'))
+});
+
+watch('app/assets/scripts/app.js', function(){
+  gulp.start('prettier');
+  gulp.start('compressScripts');
+});
+
+// rebundle scripts when changes are made
+// watch('app/assets/scripts/**/*.js', function(){
+//   gulp.start('rebundle');
+// });
+
+// Reload browsersync
+// gulp.task('rebundle', ['bundle'], function(){
+//  browserSync.reload();
+//  });
 
 // Optimise images
 gulp.task('optimiseImages', function(){
@@ -100,23 +126,22 @@ gulp.task('babel', () => {
         .pipe(babel({
             presets: ['es2015']
         }))
-        .pipe(gulp.dest('app/temp/assets/scripts/babel'));
+        .pipe(gulp.dest('app/assets/scripts/babel'));
 });
 
 // Minify Javascript
 gulp.task('compressScripts', ['babel', 'deleteDistFolder'], function(){
- return gulp.src('app/temp/assets/scripts/babel/*.js')
+ return gulp.src('app/assets/scripts/babel/*.js')
   .pipe(uglify())
-  .pipe(gulp.dest('docs/assets/scripts'));
+  .pipe(gulp.dest('app/temp/assets/scripts/min'));
 });
 
 // Grab any other files
-
 gulp.task('copyGeneralFiles', ['deleteDistFolder'], function() {
   var pathsToCopy = [
     './app/**/*',
     '!./app/index.html',
-    '!./app/assets/images/**',
+    '!./app/assets/images',
     '!./app/assets/styles/styles.css',
     '!./app/assets/styles/base',
     '!./app/assets/scripts/**',
@@ -129,11 +154,9 @@ gulp.task('copyGeneralFiles', ['deleteDistFolder'], function() {
 });
 
 // Build final
-
-gulp.task('build', ['deleteDistFolder', 'copyGeneralFiles', 'optimiseImages', 'usemin']);
+gulp.task('build', ['deleteDistFolder', 'copyGeneralFiles', 'usemin']);
 
 // Usemin
-
 gulp.task('usemin', ['deleteDistFolder', 'compilecss'], function(){
   return gulp.src('app/index.html')
   .pipe(usemin({
